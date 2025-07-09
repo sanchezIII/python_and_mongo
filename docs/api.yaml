@@ -1,0 +1,1876 @@
+openapi: 3.0.3
+info:
+  title: Flask MongoDB API
+  description: REST API for managing customers and subscriptions
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Check if the API and database are healthy
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  database:
+                    type: string
+                    example: connected
+                  version:
+                    type: string
+                    example: v1
+        "503":
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/customers:
+    get:
+      summary: Get all customers
+      description: Retrieve a list of customers with optional filtering and pagination
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: status
+          in: query
+          description: Filter by customer status
+          schema:
+            type: string
+            enum: [active, inactive, suspended]
+        - name: search
+          in: query
+          description: Search customers by name or email
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Customer"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      summary: Create a new customer
+      description: Create a new customer with the provided data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerCreate"
+      responses:
+        "201":
+          description: Customer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "409":
+          description: Customer with email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/customers/{customer_id}:
+    get:
+      summary: Get a customer by ID
+      description: Retrieve a specific customer by their ID
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          description: Customer ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Customer details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          description: Invalid customer ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      summary: Update a customer
+      description: Update an existing customer's information
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          description: Customer ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+      responses:
+        "200":
+          description: Customer updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          description: Validation error or invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "404":
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Delete a customer
+      description: Delete a customer (only if they have no active subscriptions)
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          description: Customer ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Customer deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Customer deleted successfully
+        "400":
+          description: Invalid ID or customer has active subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions:
+    get:
+      summary: Get all subscriptions
+      description: Retrieve a list of subscriptions with optional filtering and pagination
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: status
+          in: query
+          description: Filter by subscription status
+          schema:
+            type: string
+            enum: [active, canceled, expired, trial]
+        - name: customer_id
+          in: query
+          description: Filter by customer ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Subscription"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "400":
+          description: Invalid customer ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      summary: Create a new subscription
+      description: Create a new subscription for a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionCreate"
+      responses:
+        "201":
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Validation error or invalid customer/product ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions/{subscription_id}:
+    get:
+      summary: Get a subscription by ID
+      description: Retrieve a specific subscription by its ID
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Invalid subscription ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      summary: Update a subscription
+      description: Update an existing subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionUpdate"
+      responses:
+        "200":
+          description: Subscription updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Validation error or invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Delete a subscription
+      description: Delete a subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Subscription deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Subscription deleted successfully
+        "400":
+          description: Invalid subscription ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions/{subscription_id}/cancel:
+    post:
+      summary: Cancel a subscription
+      description: Cancel an active subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Subscription canceled successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Invalid ID or subscription already canceled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions/{subscription_id}/renew:
+    post:
+      summary: Renew a subscription
+      description: Renew a canceled or expired subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Subscription renewed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Invalid ID or subscription cannot be renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions/{subscription_id}/settings:
+    get:
+      summary: Get subscription settings (GetSettings)
+      description: Get effective settings for a subscription (product defaults + custom settings)
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Subscription settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription_id:
+                    type: string
+                    example: "507f1f77bcf86cd799439011"
+                  product_defaults:
+                    type: object
+                    example:
+                      {
+                        "topBarColor": "#ffffff",
+                        "topBarBackgroundColor": "#000000",
+                        "positionIndex": 0,
+                        "defaultLang": "en",
+                      }
+                  custom_settings:
+                    type: object
+                    example: { "topBarColor": "#ff0000", "positionIndex": 2 }
+                  effective_settings:
+                    type: object
+                    example:
+                      {
+                        "topBarColor": "#ff0000",
+                        "topBarBackgroundColor": "#000000",
+                        "positionIndex": 2,
+                        "defaultLang": "en",
+                      }
+        "400":
+          description: Invalid subscription ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      summary: Update subscription custom settings (EditSubscription)
+      description: Update the custom settings for a subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - custom_settings
+              properties:
+                custom_settings:
+                  type: object
+                  example:
+                    {
+                      "topBarColor": "#ff0000",
+                      "topBarBackgroundColor": "#00ff00",
+                      "positionIndex": 1,
+                      "defaultLang": "es",
+                    }
+      responses:
+        "200":
+          description: Subscription settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Validation error or invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions/{subscription_id}/status:
+    get:
+      summary: Get subscription status (GetSubscriptionStatus)
+      description: Get the current status and activity state of a subscription
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Subscription status information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription_id:
+                    type: string
+                    example: "507f1f77bcf86cd799439011"
+                  status:
+                    type: string
+                    enum: [active, canceled, expired, trial]
+                    example: "active"
+                  is_active:
+                    type: boolean
+                    example: true
+                    description: "Whether the subscription is currently active"
+                  is_expired:
+                    type: boolean
+                    example: false
+                    description: "Whether the subscription has expired"
+                  start_date:
+                    type: string
+                    format: date-time
+                  end_date:
+                    type: string
+                    format: date-time
+                  trial_end_date:
+                    type: string
+                    format: date-time
+                  canceled_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Invalid subscription ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions/{subscription_id}/extend:
+    post:
+      summary: Extend subscription (ExtendSubscription)
+      description: Extend a subscription with a new expiration date
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              oneOf:
+                - required: [end_date]
+                - required: [extension_days]
+              properties:
+                end_date:
+                  type: string
+                  format: date-time
+                  description: "New end date for the subscription"
+                  example: "2024-12-31T23:59:59Z"
+                extension_days:
+                  type: integer
+                  minimum: 1
+                  description: "Number of days to extend from current end date"
+                  example: 30
+      responses:
+        "200":
+          description: Subscription extended successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Invalid data or subscription ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions/{subscription_id}/apply-defaults:
+    post:
+      summary: Apply product defaults to subscription
+      description: Apply product default settings to subscription custom_settings (only missing keys)
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Product defaults applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Invalid ID or product not customizable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Subscription or product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscriptions/stats:
+    get:
+      summary: Get subscription statistics
+      description: Get various statistics about subscriptions
+      responses:
+        "200":
+          description: Subscription statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_subscriptions:
+                    type: integer
+                    example: 100
+                  active_subscriptions:
+                    type: integer
+                    example: 75
+                  monthly_revenue:
+                    type: number
+                    example: 2499.99
+                  status_breakdown:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        count:
+                          type: integer
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/products:
+    get:
+      summary: Get all products
+      description: Retrieve a list of products with optional filtering and pagination
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: is_active
+          in: query
+          description: Filter by product active status
+          schema:
+            type: boolean
+        - name: billing_cycle
+          in: query
+          description: Filter by billing cycle
+          schema:
+            type: string
+            enum: [weekly, monthly, yearly]
+        - name: customizable
+          in: query
+          description: Filter by customizable products
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          description: Search products by name or description
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Product"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      summary: Create a new product (AddProduct)
+      description: Create a new product with the provided data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductCreate"
+      responses:
+        "201":
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "409":
+          description: Product with name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/products/{product_id}:
+    get:
+      summary: Get a product by ID
+      description: Retrieve a specific product by its ID
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid product ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      summary: Update a product
+      description: Update an existing product's information
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Validation error or invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Delete a product
+      description: Delete a product (only if it has no active subscriptions)
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Product deleted successfully
+        "400":
+          description: Invalid ID or product has active subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/products/{product_id}/activate:
+    post:
+      summary: Activate a product
+      description: Set product status to active
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Product activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid product ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/products/{product_id}/deactivate:
+    post:
+      summary: Deactivate a product
+      description: Set product status to inactive
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+      responses:
+        "200":
+          description: Product deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid product ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/subscribe:
+    post:
+      summary: Create subscription with advanced features (Subscribe)
+      description: |
+        Complete subscription creation endpoint with enhanced features:
+        - Automatic inheritance of product properties (price, currency, billing_cycle)
+        - Custom settings with automatic product defaults application
+        - Specific end date support (overrides billing cycle calculation)
+        - Trial subscription management with product trial periods
+        - Enhanced validation and business rules
+        - Product information included in response
+
+        **Key Features:**
+        - If amount/currency/billing_cycle not provided, inherits from product
+        - Automatically applies product default_settings to custom_settings
+        - Supports custom end_date that overrides billing cycle calculation
+        - Manages trial periods automatically from product configuration
+        - Validates custom_settings against product's customizable_fields
+        - Prevents duplicate active subscriptions for same product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscribeRequest"
+            examples:
+              minimal_subscription:
+                summary: Minimal subscription (inherits product properties)
+                value:
+                  customer_id: "507f1f77bcf86cd799439012"
+                  product_id: "507f1f77bcf86cd799439013"
+              custom_subscription:
+                summary: Subscription with custom settings and specific end date
+                value:
+                  customer_id: "507f1f77bcf86cd799439012"
+                  product_id: "507f1f77bcf86cd799439013"
+                  custom_settings:
+                    topBarColor: "#ff0000"
+                    positionIndex: 2
+                    defaultLang: "es"
+                  end_date: "2024-12-31T23:59:59Z"
+                  metadata:
+                    source: "mobile_app"
+                    campaign: "black_friday"
+              override_subscription:
+                summary: Subscription overriding product properties
+                value:
+                  customer_id: "507f1f77bcf86cd799439012"
+                  product_id: "507f1f77bcf86cd799439013"
+                  amount: 19.99
+                  currency: "EUR"
+                  billing_cycle: "yearly"
+                  custom_settings:
+                    topBarColor: "#00ff00"
+                  apply_product_defaults: false
+                  auto_renew: true
+      responses:
+        "201":
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Subscription"
+                  - type: object
+                    properties:
+                      product_info:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: "Premium Plan"
+                          description:
+                            type: string
+                            example: "Premium subscription plan with advanced features"
+                          features:
+                            type: array
+                            items:
+                              type: string
+                            example: ["Priority Support", "Unlimited Storage"]
+                          customizable:
+                            type: boolean
+                            example: true
+              examples:
+                successful_subscription:
+                  summary: Successful subscription with product info
+                  value:
+                    _id: "507f1f77bcf86cd799439014"
+                    customer_id: "507f1f77bcf86cd799439012"
+                    product_id: "507f1f77bcf86cd799439013"
+                    status: "active"
+                    amount: 29.99
+                    currency: "USD"
+                    billing_cycle: "monthly"
+                    start_date: "2024-01-01T00:00:00Z"
+                    end_date: "2024-01-31T23:59:59Z"
+                    custom_settings:
+                      topBarColor: "#ff0000"
+                      topBarBackgroundColor: "#000000"
+                      positionIndex: 2
+                      defaultLang: "es"
+                    created_at: "2024-01-01T00:00:00Z"
+                    updated_at: "2024-01-01T00:00:00Z"
+                    metadata:
+                      source: "mobile_app"
+                      auto_renew: true
+                    product_info:
+                      name: "Premium Plan"
+                      description: "Premium subscription plan with advanced features"
+                      features:
+                        [
+                          "Priority Support",
+                          "Unlimited Storage",
+                          "Advanced Analytics",
+                        ]
+                      customizable: true
+        "400":
+          description: Validation error or business rule violation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  details:
+                    type: object
+                  hint:
+                    type: string
+              examples:
+                validation_error:
+                  summary: Validation error
+                  value:
+                    error: "Validation error"
+                    details:
+                      customer_id: ["Customer ID is required"]
+                      product_id: ["Invalid product ID format"]
+                    hint: "Check field requirements and formats"
+                business_rule_error:
+                  summary: Business rule violation
+                  value:
+                    error: "Customer already has an active subscription for this product"
+                product_not_active:
+                  summary: Product not available
+                  value:
+                    error: "Product is not active"
+                invalid_custom_fields:
+                  summary: Invalid customization fields
+                  value:
+                    error: "Invalid custom fields: invalidField. Allowed fields: topBarColor, positionIndex, defaultLang"
+        "404":
+          description: Customer or product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                customer_not_found:
+                  summary: Customer not found
+                  value:
+                    error: "Customer not found"
+                product_not_found:
+                  summary: Product not found
+                  value:
+                    error: "Product not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          example: "+1234567890"
+        address:
+          type: string
+          example: "123 Main St"
+        city:
+          type: string
+          example: "New York"
+        country:
+          type: string
+          example: "USA"
+        postal_code:
+          type: string
+          example: "10001"
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CustomerCreate:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          maxLength: 20
+          example: "+1234567890"
+        address:
+          type: string
+          maxLength: 200
+          example: "123 Main St"
+        city:
+          type: string
+          maxLength: 100
+          example: "New York"
+        country:
+          type: string
+          maxLength: 100
+          example: "USA"
+        postal_code:
+          type: string
+          maxLength: 20
+          example: "10001"
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          default: active
+
+    CustomerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          maxLength: 20
+          example: "+1234567890"
+        address:
+          type: string
+          maxLength: 200
+          example: "123 Main St"
+        city:
+          type: string
+          maxLength: 100
+          example: "New York"
+        country:
+          type: string
+          maxLength: 100
+          example: "USA"
+        postal_code:
+          type: string
+          maxLength: 20
+          example: "10001"
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+
+    Subscription:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        customer_id:
+          type: string
+          example: "507f1f77bcf86cd799439012"
+        product_id:
+          type: string
+          example: "507f1f77bcf86cd799439013"
+        status:
+          type: string
+          enum: [active, canceled, expired, trial]
+          example: "active"
+        amount:
+          type: number
+          example: 29.99
+        currency:
+          type: string
+          example: "USD"
+        billing_cycle:
+          type: string
+          enum: [weekly, monthly, yearly]
+          example: "monthly"
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        trial_end_date:
+          type: string
+          format: date-time
+        canceled_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          example: { "source": "web", "campaign": "spring2024" }
+        custom_settings:
+          type: object
+          example:
+            {
+              "topBarColor": "#ff0000",
+              "topBarBackgroundColor": "#00ff00",
+              "positionIndex": 1,
+              "defaultLang": "es",
+            }
+          description: "Custom settings for subscription customization"
+
+    SubscriptionCreate:
+      type: object
+      required:
+        - customer_id
+        - amount
+      properties:
+        customer_id:
+          type: string
+          pattern: "^[0-9a-fA-F]{24}$"
+          example: "507f1f77bcf86cd799439012"
+        product_id:
+          type: string
+          pattern: "^[0-9a-fA-F]{24}$"
+          example: "507f1f77bcf86cd799439013"
+        amount:
+          type: number
+          minimum: 0
+          example: 29.99
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, JPY]
+          default: USD
+        billing_cycle:
+          type: string
+          enum: [weekly, monthly, yearly]
+          default: monthly
+        status:
+          type: string
+          enum: [active, trial]
+          default: active
+        start_date:
+          type: string
+          format: date-time
+        trial_end_date:
+          type: string
+          format: date-time
+        custom_settings:
+          type: object
+          example:
+            {
+              "topBarColor": "#ff0000",
+              "positionIndex": 1,
+              "defaultLang": "es",
+            }
+          description: "Custom settings for subscription customization"
+        metadata:
+          type: object
+          example: { "source": "web", "campaign": "spring2024" }
+
+    SubscriptionUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, canceled, expired, trial]
+        amount:
+          type: number
+          minimum: 0
+          example: 29.99
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, JPY]
+        billing_cycle:
+          type: string
+          enum: [weekly, monthly, yearly]
+        custom_settings:
+          type: object
+          example:
+            {
+              "topBarColor": "#00ff00",
+              "positionIndex": 2,
+              "defaultLang": "fr",
+            }
+          description: "Custom settings for subscription customization"
+        metadata:
+          type: object
+          example: { "source": "web", "campaign": "spring2024" }
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 100
+        pages:
+          type: integer
+          example: 10
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Resource not found"
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Validation error"
+        details:
+          type: object
+          example: { "email": ["Invalid email format"] }
+
+    Product:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          example: "Premium Plan"
+        description:
+          type: string
+          example: "Premium subscription plan with advanced features"
+        price:
+          type: number
+          example: 29.99
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, JPY]
+          example: "USD"
+        billing_cycle:
+          type: string
+          enum: [weekly, monthly, yearly]
+          example: "monthly"
+        trial_period_days:
+          type: integer
+          minimum: 0
+          maximum: 365
+          example: 14
+        features:
+          type: array
+          items:
+            type: string
+          example:
+            [
+              "Priority Support",
+              "Unlimited Storage",
+              "Advanced Analytics",
+              "API Access",
+            ]
+        is_active:
+          type: boolean
+          example: true
+        customizable:
+          type: boolean
+          example: true
+          description: "Whether the product is customizable"
+        customizable_fields:
+          type: array
+          items:
+            type: string
+          example:
+            [
+              "topBarColor",
+              "topBarBackgroundColor",
+              "topBarButtonBackgroundColor",
+              "positionIndex",
+              "defaultLang",
+            ]
+          description: "Array of customizable field names"
+        default_settings:
+          type: object
+          example:
+            {
+              "topBarColor": "#ffffff",
+              "topBarBackgroundColor": "#000000",
+              "topBarButtonBackgroundColor": "#000000",
+              "positionIndex": 0,
+              "defaultLang": "en",
+            }
+          description: "Default settings for customizable products"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProductCreate:
+      type: object
+      required:
+        - name
+        - price
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Premium Plan"
+        description:
+          type: string
+          maxLength: 200
+          example: "Premium subscription plan with advanced features"
+        price:
+          type: number
+          minimum: 0
+          example: 29.99
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, JPY]
+          default: USD
+        billing_cycle:
+          type: string
+          enum: [weekly, monthly, yearly]
+          default: monthly
+        trial_period_days:
+          type: integer
+          minimum: 0
+          maximum: 365
+          example: 14
+        features:
+          type: array
+          items:
+            type: string
+          example:
+            [
+              "Priority Support",
+              "Unlimited Storage",
+              "Advanced Analytics",
+              "API Access",
+            ]
+        is_active:
+          type: boolean
+          example: true
+        customizable:
+          type: boolean
+          example: true
+          description: "Whether the product is customizable"
+        customizable_fields:
+          type: array
+          items:
+            type: string
+          example:
+            [
+              "topBarColor",
+              "topBarBackgroundColor",
+              "topBarButtonBackgroundColor",
+              "positionIndex",
+              "defaultLang",
+            ]
+          description: "Array of customizable field names"
+        default_settings:
+          type: object
+          example:
+            {
+              "topBarColor": "#ffffff",
+              "topBarBackgroundColor": "#000000",
+              "topBarButtonBackgroundColor": "#000000",
+              "positionIndex": 0,
+              "defaultLang": "en",
+            }
+          description: "Default settings for customizable products"
+
+    ProductUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Premium Plan"
+        description:
+          type: string
+          maxLength: 200
+          example: "Premium subscription plan with advanced features"
+        price:
+          type: number
+          minimum: 0
+          example: 29.99
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, JPY]
+        billing_cycle:
+          type: string
+          enum: [weekly, monthly, yearly]
+        trial_period_days:
+          type: integer
+          minimum: 0
+          maximum: 365
+        features:
+          type: array
+          items:
+            type: string
+        is_active:
+          type: boolean
+        customizable:
+          type: boolean
+        customizable_fields:
+          type: array
+          items:
+            type: string
+        default_settings:
+          type: object
+
+    SubscribeRequest:
+      type: object
+      required:
+        - customer_id
+        - product_id
+      properties:
+        customer_id:
+          type: string
+          pattern: "^[0-9a-fA-F]{24}$"
+          description: "ObjectId of the customer"
+          example: "507f1f77bcf86cd799439012"
+        product_id:
+          type: string
+          pattern: "^[0-9a-fA-F]{24}$"
+          description: "ObjectId of the product to subscribe to"
+          example: "507f1f77bcf86cd799439013"
+        amount:
+          type: number
+          minimum: 0
+          description: "Subscription amount (if not provided, inherits from product price)"
+          example: 29.99
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, JPY]
+          description: "Currency code (if not provided, inherits from product currency)"
+          example: "USD"
+        billing_cycle:
+          type: string
+          enum: [weekly, monthly, yearly]
+          description: "Billing cycle (if not provided, inherits from product billing_cycle)"
+          example: "monthly"
+        custom_settings:
+          type: object
+          description: "Custom settings for subscription customization"
+          example:
+            {
+              "topBarColor": "#ff0000",
+              "topBarBackgroundColor": "#00ff00",
+              "positionIndex": 2,
+              "defaultLang": "es",
+            }
+        apply_product_defaults:
+          type: boolean
+          default: true
+          description: "Whether to automatically apply product default settings to custom_settings"
+          example: true
+        start_date:
+          type: string
+          format: date-time
+          description: "Subscription start date (if not provided, uses current datetime)"
+          example: "2024-01-01T00:00:00Z"
+        end_date:
+          type: string
+          format: date-time
+          description: "Specific end date for subscription (overrides billing cycle calculation)"
+          example: "2024-12-31T23:59:59Z"
+        trial_end_date:
+          type: string
+          format: date-time
+          description: "Trial end date (if not provided but product has trial_period_days, calculated automatically)"
+          example: "2024-01-14T23:59:59Z"
+        auto_renew:
+          type: boolean
+          default: true
+          description: "Whether subscription should auto-renew (stored in metadata)"
+          example: true
+        metadata:
+          type: object
+          description: "Additional metadata for the subscription"
+          example:
+            {
+              "source": "mobile_app",
+              "campaign": "black_friday",
+              "referrer": "friend_invitation",
+            }
