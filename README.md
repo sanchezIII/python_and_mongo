@@ -84,12 +84,12 @@ You should see a healthy response:
 
 ### Authentication
 
-All API endpoints under `/api/` are protected and require an `X-API-Key` header. The default key for development is `demo-api-key-12345`.
+All API endpoints under `/api/` are protected and require an `X-API-Key` header. The default key for development is `demo-key-123`.
 
 **Example Request:**
 
 ```bash
-curl -H "X-API-Key: demo-api-key-12345" http://localhost:5001/api/customers
+curl -H "X-API-Key: demo-key-123" http://localhost:5001/api/customers
 ```
 
 ### Main Endpoints

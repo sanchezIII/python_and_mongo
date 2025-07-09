@@ -151,11 +151,11 @@ class SubscriptionSchema(Schema):
     _id = fields.String(dump_only=True)
     customer_id = fields.String(
         required=True,
-        validate=validate.Length(equal=24),  # ObjectId length
+        validate=validate.Length(equal=24),
         error_messages={'required': 'Customer ID is required'}
     )
     product_id = fields.String(
-        validate=validate.Length(equal=24),  # ObjectId length
+        validate=validate.Length(equal=24),
         allow_none=True
     )
     amount = fields.Decimal(
@@ -165,29 +165,29 @@ class SubscriptionSchema(Schema):
     )
     currency = fields.String(
         validate=validate.OneOf(['USD', 'EUR', 'GBP', 'JPY']),
-        missing='USD'
+        load_default='USD'
     )
     billing_cycle = fields.String(
         validate=validate.OneOf(['weekly', 'monthly', 'yearly']),
-        missing='monthly'
+        load_default='monthly'
     )
     status = fields.String(
         validate=validate.OneOf(['active', 'canceled', 'expired', 'trial']),
-        missing='active'
+        load_default='active'
     )
     custom_settings = fields.Dict(
         keys=fields.String(),
-        values=fields.Raw(),  # Allow any value type
-        missing=dict
+        values=fields.Raw(),
+        load_default=dict
     )
-    start_date = fields.DateTime(missing=datetime.utcnow)
+    start_date = fields.DateTime(load_default=datetime.utcnow)
     end_date = fields.DateTime(allow_none=True)
     trial_end_date = fields.DateTime(allow_none=True)
     canceled_at = fields.DateTime(dump_only=True)
     metadata = fields.Dict(
         keys=fields.String(),
         values=fields.Raw(),
-        missing=dict
+        load_default=dict
     )
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
@@ -213,31 +213,31 @@ class SubscriptionUpdateSchema(Schema):
     
     amount = fields.Decimal(
         validate=validate.Range(min=0),
-        missing=None
+        load_default=None
     )
     currency = fields.String(
         validate=validate.OneOf(['USD', 'EUR', 'GBP', 'JPY']),
-        missing=None
+        load_default=None
     )
     billing_cycle = fields.String(
         validate=validate.OneOf(['weekly', 'monthly', 'yearly']),
-        missing=None
+        load_default=None
     )
     status = fields.String(
         validate=validate.OneOf(['active', 'canceled', 'expired', 'trial']),
-        missing=None
+        load_default=None
     )
     custom_settings = fields.Dict(
         keys=fields.String(),
         values=fields.Raw(),
-        missing=None
+        load_default=None
     )
-    end_date = fields.DateTime(missing=None)
-    trial_end_date = fields.DateTime(missing=None)
+    end_date = fields.DateTime(load_default=None)
+    trial_end_date = fields.DateTime(load_default=None)
     metadata = fields.Dict(
         keys=fields.String(),
         values=fields.Raw(),
-        missing=None
+        load_default=None
     )
 
 
@@ -273,52 +273,52 @@ class SubscribeSchema(Schema):
     )
     amount = fields.Decimal(
         validate=validate.Range(min=0),
-        missing=None  # If not provided, will use product price
+        load_default=None  # If not provided, will use product price
     )
     currency = fields.String(
         validate=validate.OneOf(['USD', 'EUR', 'GBP', 'JPY']),
-        missing=None  # If not provided, will use product currency
+        load_default=None  # If not provided, will use product currency
     )
     billing_cycle = fields.String(
         validate=validate.OneOf(['weekly', 'monthly', 'yearly']),
-        missing=None  # If not provided, will use product billing_cycle
+        load_default=None  # If not provided, will use product billing_cycle
     )
     status = fields.String(
         validate=validate.OneOf(['active', 'canceled', 'expired', 'trial']),
-        missing='active',
-        description="Subscription status"
+        load_default='active',
+        metadata={"description": "Subscription status"}
     )
     custom_settings = fields.Dict(
         keys=fields.String(),
         values=fields.Raw(),
-        missing=dict,
-        description="Custom settings for subscription customization"
+        load_default=dict,
+        metadata={"description": "Custom settings for subscription customization"}
     )
     apply_product_defaults = fields.Boolean(
-        missing=True,
-        description="Whether to apply product default settings automatically"
+        load_default=True,
+        metadata={"description": "Whether to apply product default settings automatically"}
     )
     start_date = fields.DateTime(
-        missing=None,  # If not provided, will use current datetime
-        description="Subscription start date"
+        load_default=None,  # If not provided, will use current datetime
+        metadata={"description": "Subscription start date"}
     )
     end_date = fields.DateTime(
         allow_none=True,
-        description="Specific end date for subscription (overrides billing cycle calculation)"
+        metadata={"description": "Specific end date for subscription (overrides billing cycle calculation)"}
     )
     trial_end_date = fields.DateTime(
         allow_none=True,
-        description="Trial end date if subscription starts in trial"
+        metadata={"description": "Trial end date if subscription starts in trial"}
     )
     auto_renew = fields.Boolean(
-        missing=True,
-        description="Whether subscription should auto-renew"
+        load_default=True,
+        metadata={"description": "Whether subscription should auto-renew"}
     )
     metadata = fields.Dict(
         keys=fields.String(),
         values=fields.Raw(),
-        missing=dict,
-        description="Additional metadata for the subscription"
+        load_default=dict,
+        metadata={"description": "Additional metadata for the subscription"}
     )
     
     @post_load
