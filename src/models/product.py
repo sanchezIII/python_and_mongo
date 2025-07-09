@@ -98,8 +98,7 @@ class ProductSchema(Schema):
     _id = fields.String(dump_only=True)
     name = fields.String(
         required=True,
-        validate=validate.Length(min=2, max=100),
-        error_messages={'required': 'Product name is required'}
+        validate=validate.Length(min=2, max=100)
     )
     description = fields.String(
         validate=validate.Length(max=500),
@@ -107,35 +106,38 @@ class ProductSchema(Schema):
     )
     price = fields.Decimal(
         required=True,
-        validate=validate.Range(min=0),
-        error_messages={'required': 'Price is required'}
+        validate=validate.Range(min=0)
     )
     currency = fields.String(
         validate=validate.OneOf(['USD', 'EUR', 'GBP', 'JPY']),
-        missing='USD'
+        load_default='USD'
     )
     billing_cycle = fields.String(
-        validate=validate.OneOf(['monthly', 'yearly', 'weekly']),
-        missing='monthly'
+        validate=validate.OneOf(['weekly', 'monthly', 'yearly']),
+        load_default='monthly'
     )
     trial_period_days = fields.Integer(
         validate=validate.Range(min=0, max=365),
-        missing=0
+        allow_none=True
     )
     features = fields.List(
         fields.String(validate=validate.Length(max=100)),
-        missing=list
+        load_default=list
     )
-    is_active = fields.Boolean(missing=True)
-    customizable = fields.Boolean(missing=False)
+    is_active = fields.Boolean(
+        load_default=True
+    )
+    customizable = fields.Boolean(
+        load_default=False
+    )
     customizable_fields = fields.List(
         fields.String(validate=validate.Length(max=100)),
-        missing=list
+        load_default=list
     )
     default_settings = fields.Dict(
         keys=fields.String(),
-        values=fields.String(),
-        missing=dict
+        values=fields.Raw(),
+        load_default=dict
     )
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
@@ -155,43 +157,44 @@ class ProductUpdateSchema(Schema):
     
     name = fields.String(
         validate=validate.Length(min=2, max=100),
-        missing=None
+        load_default=None
     )
     description = fields.String(
         validate=validate.Length(max=500),
         allow_none=True,
-        missing=None
+        load_default=None
     )
     price = fields.Decimal(
         validate=validate.Range(min=0),
-        missing=None
+        load_default=None
     )
     currency = fields.String(
         validate=validate.OneOf(['USD', 'EUR', 'GBP', 'JPY']),
-        missing=None
+        load_default=None
     )
     billing_cycle = fields.String(
-        validate=validate.OneOf(['monthly', 'yearly', 'weekly']),
-        missing=None
+        validate=validate.OneOf(['weekly', 'monthly', 'yearly']),
+        load_default=None
     )
     trial_period_days = fields.Integer(
         validate=validate.Range(min=0, max=365),
-        missing=None
+        allow_none=True,
+        load_default=None
     )
     features = fields.List(
         fields.String(validate=validate.Length(max=100)),
-        missing=None
+        load_default=None
     )
-    is_active = fields.Boolean(missing=None)
-    customizable = fields.Boolean(missing=None)
+    is_active = fields.Boolean(load_default=None)
+    customizable = fields.Boolean(load_default=None)
     customizable_fields = fields.List(
         fields.String(validate=validate.Length(max=100)),
-        missing=None
+        load_default=None
     )
     default_settings = fields.Dict(
         keys=fields.String(),
-        values=fields.String(),
-        missing=None
+        values=fields.Raw(),
+        load_default=None
     )
 
 

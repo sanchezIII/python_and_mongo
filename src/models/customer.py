@@ -74,36 +74,40 @@ class CustomerSchema(Schema):
     _id = fields.String(dump_only=True)
     name = fields.String(
         required=True,
-        validate=validate.Length(min=2, max=100),
-        error_messages={'required': 'Name is required'}
+        validate=validate.Length(min=2, max=100)
     )
     email = fields.Email(
         required=True,
-        error_messages={'required': 'Email is required'}
+        validate=validate.Length(max=120)
     )
     phone = fields.String(
-        validate=validate.Length(max=20),
-        allow_none=True
+        required=False,
+        allow_none=True,
+        validate=validate.Length(max=20)
     )
     address = fields.String(
-        validate=validate.Length(max=200),
-        allow_none=True
+        required=False,
+        allow_none=True,
+        validate=validate.Length(max=200)
     )
     city = fields.String(
-        validate=validate.Length(max=100),
-        allow_none=True
+        required=False,
+        allow_none=True,
+        validate=validate.Length(max=100)
     )
     country = fields.String(
-        validate=validate.Length(max=100),
-        allow_none=True
+        required=False,
+        allow_none=True,
+        validate=validate.Length(max=100)
     )
     postal_code = fields.String(
-        validate=validate.Length(max=20),
-        allow_none=True
+        required=False,
+        allow_none=True,
+        validate=validate.Length(max=20)
     )
     status = fields.String(
-        validate=validate.OneOf(['active', 'inactive', 'suspended']),
-        missing='active'
+        validate=validate.OneOf(["active", "inactive", "suspended"]),
+        load_default="active"
     )
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
@@ -123,37 +127,40 @@ class CustomerUpdateSchema(Schema):
     
     name = fields.String(
         validate=validate.Length(min=2, max=100),
-        missing=None
+        load_default=None
     )
-    email = fields.Email(missing=None)
+    email = fields.Email(
+        validate=validate.Length(max=120),
+        load_default=None
+    )
     phone = fields.String(
         validate=validate.Length(max=20),
-        allow_none=True,
-        missing=None
+        load_default=None,
+        allow_none=True
     )
     address = fields.String(
         validate=validate.Length(max=200),
-        allow_none=True,
-        missing=None
+        load_default=None,
+        allow_none=True
     )
     city = fields.String(
         validate=validate.Length(max=100),
-        allow_none=True,
-        missing=None
+        load_default=None,
+        allow_none=True
     )
     country = fields.String(
         validate=validate.Length(max=100),
-        allow_none=True,
-        missing=None
+        load_default=None,
+        allow_none=True
     )
     postal_code = fields.String(
         validate=validate.Length(max=20),
-        allow_none=True,
-        missing=None
+        load_default=None,
+        allow_none=True
     )
     status = fields.String(
-        validate=validate.OneOf(['active', 'inactive', 'suspended']),
-        missing=None
+        validate=validate.OneOf(["active", "inactive", "suspended"]),
+        load_default=None
     )
 
 
